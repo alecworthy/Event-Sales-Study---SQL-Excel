@@ -1,0 +1,519 @@
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS opportunities;
+DROP TABLE IF EXISTS leads;
+DROP TABLE IF EXISTS customers;
+DROP TABLE IF EXISTS packages;
+DROP TABLE IF EXISTS sales_reps;
+
+CREATE TABLE customers (
+  customer_id    BIGINT AUTO_INCREMENT PRIMARY KEY,
+  company_name   VARCHAR(255) NOT NULL,
+  industry       VARCHAR(100),
+  state          CHAR(3),
+  employee_band  VARCHAR(20),
+  created_at     DATE NOT NULL
+);
+
+CREATE TABLE packages (
+  package_id     BIGINT AUTO_INCREMENT PRIMARY KEY,
+  package_name   VARCHAR(255) NOT NULL,
+  package_type   VARCHAR(50),
+  base_price     DECIMAL(12,2) NOT NULL
+);
+
+CREATE TABLE sales_reps (
+  sales_rep_id   BIGINT AUTO_INCREMENT PRIMARY KEY,
+  rep_name       VARCHAR(255) NOT NULL,
+  team           VARCHAR(50),
+  start_date     DATE NOT NULL
+);
+
+CREATE TABLE leads (
+  lead_id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+  customer_id    BIGINT NOT NULL,
+  source         VARCHAR(50),
+  created_date   DATE NOT NULL,
+  assigned_rep_id BIGINT,
+  status         VARCHAR(20) NOT NULL,
+  INDEX idx_leads_created_date (created_date),
+  CONSTRAINT fk_leads_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+  CONSTRAINT fk_leads_rep FOREIGN KEY (assigned_rep_id) REFERENCES sales_reps(sales_rep_id)
+);
+
+CREATE TABLE opportunities (
+  opportunity_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  lead_id        BIGINT NOT NULL,
+  customer_id    BIGINT NOT NULL,
+  sales_rep_id   BIGINT NOT NULL,
+  package_id     BIGINT,
+  created_date   DATE NOT NULL,
+  event_date     DATE,
+  stage          VARCHAR(20) NOT NULL,
+  estimated_value DECIMAL(12,2) NOT NULL,
+  close_date     DATE,
+  loss_reason    VARCHAR(100),
+  INDEX idx_opps_created_date (created_date),
+  CONSTRAINT fk_opp_lead FOREIGN KEY (lead_id) REFERENCES leads(lead_id),
+  CONSTRAINT fk_opp_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+  CONSTRAINT fk_opp_rep FOREIGN KEY (sales_rep_id) REFERENCES sales_reps(sales_rep_id),
+  CONSTRAINT fk_opp_pkg FOREIGN KEY (package_id) REFERENCES packages(package_id)
+);
+
+CREATE TABLE bookings (
+  booking_id     BIGINT AUTO_INCREMENT PRIMARY KEY,
+  opportunity_id BIGINT NOT NULL UNIQUE,
+  customer_id    BIGINT NOT NULL,
+  package_id     BIGINT,
+  booking_date   DATE NOT NULL,
+  event_date     DATE NOT NULL,
+  attendees      INT,
+  revenue        DECIMAL(12,2) NOT NULL,
+  cost           DECIMAL(12,2) NOT NULL,
+  state          CHAR(3),
+  INDEX idx_bookings_booking_date (booking_date),
+  INDEX idx_bookings_event_date (event_date),
+  CONSTRAINT fk_book_opp FOREIGN KEY (opportunity_id) REFERENCES opportunities(opportunity_id),
+  CONSTRAINT fk_book_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+  CONSTRAINT fk_book_pkg FOREIGN KEY (package_id) REFERENCES packages(package_id)
+);
+
+CREATE TABLE payments (
+  payment_id     BIGINT AUTO_INCREMENT PRIMARY KEY,
+  booking_id     BIGINT NOT NULL,
+  payment_date   DATE NOT NULL,
+  amount         DECIMAL(12,2) NOT NULL,
+  payment_type   VARCHAR(20),
+  CONSTRAINT fk_pay_booking FOREIGN KEY (booking_id) REFERENCES bookings(booking_id)
+);
+START TRANSACTION;
+
+-- Clean
+
+
+-- 1) Numbers table (1..5000) for seeding
+DROP TABLE IF EXISTS numbers;
+CREATE TABLE numbers (n INT PRIMARY KEY);
+
+INSERT INTO numbers (n)
+SELECT (a.n + b.n*10 + c.n*100 + d.n*1000) + 1 AS n
+FROM (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+      UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a
+CROSS JOIN (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+      UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) b
+CROSS JOIN (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+      UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) c
+CROSS JOIN (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4) d
+WHERE (a.n + b.n*10 + c.n*100 + d.n*1000) + 1 <= 5000;
+
+-- 2) Sales reps (12)
+INSERT INTO sales_reps (rep_name, team, start_date)
+SELECT
+  CONCAT('Rep ', LPAD(n, 2, '0')) AS rep_name,
+  IF(n <= 6, 'Corporate', 'SMB') AS team,
+  DATE_ADD('2023-01-01', INTERVAL FLOOR(RAND() * 365) DAY) AS start_date
+FROM numbers
+WHERE n <= 12;
+
+-- 3) Packages (8)
+INSERT INTO packages (package_name, package_type, base_price) VALUES
+  ('Team Builder Half-Day', 'Team Building', 4500),
+  ('Team Builder Full-Day', 'Team Building', 7500),
+  ('Corporate Offsite',     'Offsite',      12000),
+  ('Awards Night',          'Gala',         18000),
+  ('Product Launch',        'Launch',       22000),
+  ('Conference Day Pass',   'Conference',   14000),
+  ('Christmas Party',       'Seasonal',     16000),
+  ('Executive Retreat',     'Retreat',      26000);
+
+-- 4) Customers (350)
+INSERT INTO customers (company_name, industry, state, employee_band, created_at)
+SELECT
+  CONCAT('Company ', LPAD(n, 3, '0')) AS company_name,
+  ELT(1 + FLOOR(RAND() * 8),
+      'Technology','Finance','Healthcare','Education','Retail','Construction','Hospitality','Media') AS industry,
+  ELT(1 + FLOOR(RAND() * 8),
+      'NSW','VIC','QLD','SA','WA','TAS','ACT','NT') AS state,
+  ELT(1 + FLOOR(RAND() * 4),
+      '1-50','51-200','201-1000','1000+') AS employee_band,
+  DATE_ADD('2024-01-01', INTERVAL FLOOR(RAND() * DATEDIFF('2025-12-30','2024-01-01')) DAY) AS created_at
+FROM numbers
+WHERE n <= 350;
+
+-- 5) Leads (1800) with Oct–Dec seasonal spike
+INSERT INTO leads (customer_id, source, created_date, assigned_rep_id, status)
+SELECT
+  1 + FLOOR(RAND() * 350) AS customer_id,
+  ELT(1 + FLOOR(RAND() * 5), 'web','referral','partner','outbound','repeat') AS source,
+  CASE
+    WHEN RAND() < 0.55 THEN
+      DATE_ADD('2024-10-01', INTERVAL FLOOR(RAND() * DATEDIFF('2025-12-30','2024-10-01')) DAY)
+    ELSE
+      DATE_ADD('2024-01-01', INTERVAL FLOOR(RAND() * DATEDIFF('2025-09-30','2024-01-01')) DAY)
+  END AS created_date,
+  1 + FLOOR(RAND() * 12) AS assigned_rep_id,
+  CASE
+    WHEN RAND() < 0.42 THEN 'new'
+    WHEN RAND() < 0.74 THEN 'contacted'
+    WHEN RAND() < 0.93 THEN 'qualified'
+    ELSE 'disqualified'
+  END AS status
+FROM numbers
+WHERE n <= 1800;
+
+-- 6) Opportunities (1300): first 1000 won, next 150 lost, rest open
+-- We pick a random lead each time using ORDER BY RAND() LIMIT 1 via a subquery join trick.
+-- In MySQL 5.7, simplest: insert using numbers and correlated subqueries.
+
+INSERT INTO opportunities (
+  lead_id, customer_id, sales_rep_id, package_id,
+  created_date, event_date, stage, estimated_value, close_date, loss_reason
+)
+SELECT
+  -- pick a random non-disqualified lead
+  (SELECT l.lead_id FROM leads l WHERE l.status <> 'disqualified' ORDER BY RAND() LIMIT 1) AS lead_id,
+  (SELECT l.customer_id FROM leads l WHERE l.status <> 'disqualified' ORDER BY RAND() LIMIT 1) AS customer_id,
+  (SELECT l.assigned_rep_id FROM leads l WHERE l.status <> 'disqualified' ORDER BY RAND() LIMIT 1) AS sales_rep_id,
+  1 + FLOOR(RAND() * 8) AS package_id,
+
+  -- created_date based on a seasonal distribution (similar to leads)
+  CASE
+    WHEN RAND() < 0.55 THEN
+      DATE_ADD('2024-10-01', INTERVAL FLOOR(RAND() * DATEDIFF('2025-12-30','2024-10-01')) DAY)
+    ELSE
+      DATE_ADD('2024-01-01', INTERVAL FLOOR(RAND() * DATEDIFF('2025-09-30','2024-01-01')) DAY)
+  END AS created_date,
+
+  -- event date 20-140 days after created_date
+  DATE_ADD(
+    CASE
+      WHEN RAND() < 0.55 THEN DATE_ADD('2024-10-01', INTERVAL FLOOR(RAND() * DATEDIFF('2025-12-30','2024-10-01')) DAY)
+      ELSE DATE_ADD('2024-01-01', INTERVAL FLOOR(RAND() * DATEDIFF('2025-09-30','2024-01-01')) DAY)
+    END,
+    INTERVAL (20 + FLOOR(RAND() * 120)) DAY
+  ) AS event_date,
+
+  CASE
+    WHEN n <= 1000 THEN 'won'
+    WHEN n <= 1150 THEN 'lost'
+    ELSE ELT(1 + FLOOR(RAND() * 3), 'discovery','proposal','negotiation')
+  END AS stage,
+
+  ROUND( (4500 + RAND()*25000) * (0.9 + RAND()*0.4), 2 ) AS estimated_value,
+
+  CASE
+    WHEN n <= 1150 THEN DATE_ADD(CURDATE(), INTERVAL -(FLOOR(RAND() * 700)) DAY)
+    ELSE NULL
+  END AS close_date,
+
+  CASE
+    WHEN n BETWEEN 1001 AND 1150 THEN ELT(1 + FLOOR(RAND() * 5), 'Budget','Timing','Chose competitor','No response','Scope mismatch')
+    ELSE NULL
+  END AS loss_reason
+FROM numbers
+WHERE n <= 1300;
+
+-- 7) Fix opportunity customer/rep/lead consistency (make them align)
+-- Because the correlated subqueries above pick different random leads per column,
+-- we normalise by joining back to lead_id to copy customer + rep.
+UPDATE opportunities o
+JOIN leads l ON l.lead_id = o.lead_id
+SET o.customer_id = l.customer_id,
+    o.sales_rep_id = l.assigned_rep_id;
+
+-- 8) Close dates for won/lost based on created_date (more realistic)
+UPDATE opportunities
+SET close_date = DATE_ADD(created_date, INTERVAL (5 + FLOOR(RAND() * 40)) DAY)
+WHERE stage IN ('won','lost');
+
+-- 9) Bookings: EXACTLY 1000 from won opportunities
+INSERT INTO bookings (
+  opportunity_id, customer_id, package_id,
+  booking_date, event_date, attendees, revenue, cost, state
+)
+SELECT
+  o.opportunity_id,
+  o.customer_id,
+  o.package_id,
+  o.close_date AS booking_date,
+  o.event_date,
+  CASE
+    WHEN MONTH(o.event_date) IN (11,12) THEN 50 + FLOOR(RAND() * 451)
+    WHEN MONTH(o.event_date) = 10 THEN 40 + FLOOR(RAND() * 421)
+    ELSE 30 + FLOOR(RAND() * 371)
+  END AS attendees,
+  ROUND(
+    (
+      p.base_price
+      + (CASE
+          WHEN MONTH(o.event_date) IN (11,12) THEN (50 + FLOOR(RAND() * 451))
+          WHEN MONTH(o.event_date) = 10 THEN (40 + FLOOR(RAND() * 421))
+          ELSE (30 + FLOOR(RAND() * 371))
+        END) * (70 + RAND() * 90)
+      + (RAND() * 12000)
+    )
+    *
+    (CASE
+      WHEN p.package_type = 'Seasonal' AND MONTH(o.event_date) IN (11,12) THEN 1.35
+      WHEN MONTH(o.event_date) IN (11,12) THEN 1.15
+      WHEN MONTH(o.event_date) = 10 THEN 1.08
+      ELSE 1.00
+    END)
+  , 2) AS revenue,
+  ROUND(
+    (
+      (
+        p.base_price
+        + (CASE
+            WHEN MONTH(o.event_date) IN (11,12) THEN (50 + FLOOR(RAND() * 451))
+            WHEN MONTH(o.event_date) = 10 THEN (40 + FLOOR(RAND() * 421))
+            ELSE (30 + FLOOR(RAND() * 371))
+          END) * (70 + RAND() * 90)
+        + (RAND() * 12000)
+      )
+      *
+      (CASE
+        WHEN p.package_type = 'Seasonal' AND MONTH(o.event_date) IN (11,12) THEN 1.35
+        WHEN MONTH(o.event_date) IN (11,12) THEN 1.15
+        WHEN MONTH(o.event_date) = 10 THEN 1.08
+        ELSE 1.00
+      END)
+    )
+    *
+    (CASE
+      WHEN MONTH(o.event_date) IN (11,12) THEN (0.67 + RAND() * 0.20)
+      ELSE (0.60 + RAND() * 0.25)
+    END)
+  , 2) AS cost,
+  c.state
+FROM opportunities o
+JOIN packages p ON p.package_id = o.package_id
+JOIN customers c ON c.customer_id = o.customer_id
+WHERE o.stage = 'won'
+ORDER BY o.opportunity_id
+LIMIT 1000;
+
+-- 10) Payments: deposit 30% + balance 70%
+INSERT INTO payments (booking_id, payment_date, amount, payment_type)
+SELECT
+  b.booking_id,
+  DATE_ADD(b.booking_date, INTERVAL FLOOR(RAND() * 4) DAY),
+  ROUND(b.revenue * 0.30, 2),
+  'deposit'
+FROM bookings b;
+
+INSERT INTO payments (booking_id, payment_date, amount, payment_type)
+SELECT
+  b.booking_id,
+  DATE_SUB(b.event_date, INTERVAL (7 + FLOOR(RAND() * 6)) DAY),
+  ROUND(b.revenue * 0.70, 2),
+  'balance'
+FROM bookings b;
+
+COMMIT;
+
+-- Sanity
+SELECT COUNT(*) AS bookings_count FROM bookings;
+
+SELECT DATE_FORMAT(event_date, '%Y-%m-01') AS month, COUNT(*) AS bookings, SUM(revenue) AS revenue
+FROM bookings
+GROUP BY 1
+ORDER BY 1;
+SELECT DATE_FORMAT(event_date, '%Y-%m-01') AS month, COUNT(*) AS bookings, SUM(revenue) AS revenue
+FROM bookings
+GROUP BY 1
+ORDER BY 1;
+
+-- Data quality checks (MySQL 9.3)
+
+-- 1) Duplicate customers (case-insensitive)
+SELECT LOWER(company_name) AS company_key, COUNT(*) AS cnt
+FROM customers
+GROUP BY 1
+HAVING COUNT(*) > 1;
+
+-- 2) Leads without assigned rep
+SELECT COUNT(*) AS unassigned_leads
+FROM leads
+WHERE assigned_rep_id IS NULL;
+
+-- 3) Orphan opportunities (lead missing)
+SELECT o.opportunity_id
+FROM opportunities o
+LEFT JOIN leads l ON l.lead_id = o.lead_id
+WHERE l.lead_id IS NULL;
+
+-- 4) Orphan bookings (opportunity missing)
+SELECT b.booking_id
+FROM bookings b
+LEFT JOIN opportunities o ON o.opportunity_id = b.opportunity_id
+WHERE o.opportunity_id IS NULL;
+
+-- 5) Revenue/cost sanity
+SELECT
+  SUM(CASE WHEN revenue < 0 THEN 1 ELSE 0 END) AS neg_revenue,
+  SUM(CASE WHEN cost < 0 THEN 1 ELSE 0 END) AS neg_cost,
+  SUM(CASE WHEN revenue < cost THEN 1 ELSE 0 END) AS negative_margin_rows
+FROM bookings;
+
+-- 6) Payments exceeding revenue
+SELECT b.booking_id, b.revenue, SUM(p.amount) AS total_paid
+FROM bookings b
+JOIN payments p ON p.booking_id = b.booking_id
+GROUP BY b.booking_id, b.revenue
+HAVING SUM(p.amount) > b.revenue;
+
+-- 7) Stage completeness: won/lost should have close_date
+SELECT opportunity_id, stage, close_date
+FROM opportunities
+WHERE stage IN ('won','lost') AND close_date IS NULL;
+-- Monthly Sales KPIs (MySQL 9.3)
+
+WITH monthly AS (
+  SELECT
+    DATE_FORMAT(booking_date, '%Y-%m-01') AS month,
+    COUNT(*) AS bookings,
+    SUM(revenue) AS revenue,
+    SUM(cost) AS cost,
+    SUM(revenue - cost) AS margin,
+    AVG(revenue) AS avg_booking_value
+  FROM bookings
+  GROUP BY 1
+)
+SELECT
+  month,
+  bookings,
+  ROUND(revenue,2) AS revenue,
+  ROUND(cost,2) AS cost,
+  ROUND(margin,2) AS margin,
+  ROUND(100 * margin / NULLIF(revenue,0), 2) AS margin_pct,
+  ROUND(avg_booking_value,2) AS avg_booking_value,
+  ROUND(
+    100 * (revenue - LAG(revenue) OVER (ORDER BY month))
+      / NULLIF(LAG(revenue) OVER (ORDER BY month),0)
+  , 2) AS mom_revenue_growth_pct
+FROM monthly
+ORDER BY month;
+-- Customer Insights (MySQL 9.3)
+
+WITH customer_bookings AS (
+  SELECT
+    customer_id,
+    COUNT(*) AS booking_count,
+    MIN(booking_date) AS first_booking_date,
+    MAX(booking_date) AS last_booking_date,
+    SUM(revenue) AS lifetime_revenue,
+    SUM(revenue - cost) AS lifetime_margin,
+    AVG(revenue) AS avg_booking_value
+  FROM bookings
+  GROUP BY customer_id
+)
+SELECT
+  c.customer_id,
+  c.company_name,
+  c.industry,
+  c.state,
+  cb.booking_count,
+  cb.first_booking_date,
+  cb.last_booking_date,
+  ROUND(cb.lifetime_revenue,2) AS lifetime_revenue,
+  ROUND(cb.lifetime_margin,2) AS lifetime_margin,
+  ROUND(cb.avg_booking_value,2) AS avg_booking_value,
+  CASE
+    WHEN cb.booking_count = 1 THEN 'One-time'
+    WHEN cb.booking_count BETWEEN 2 AND 3 THEN 'Repeat'
+    ELSE 'Loyal'
+  END AS customer_segment
+FROM customer_bookings cb
+JOIN customers c ON c.customer_id = cb.customer_id
+ORDER BY cb.lifetime_revenue DESC;
+
+-- Repeat rate (% customers with 2+ bookings)
+WITH counts AS (
+  SELECT customer_id, COUNT(*) AS n
+  FROM bookings
+  GROUP BY customer_id
+)
+SELECT
+  ROUND(100 * SUM(CASE WHEN n >= 2 THEN 1 ELSE 0 END) / COUNT(*), 2) AS repeat_rate_pct
+FROM counts;
+-- Funnel & Sales Cycle (MySQL 9.3)
+
+WITH lead_base AS (
+  SELECT
+    lead_id,
+    DATE_FORMAT(created_date, '%Y-%m-01') AS month
+  FROM leads
+),
+opp_base AS (
+  SELECT
+    opportunity_id,
+    lead_id,
+    stage,
+    created_date,
+    close_date
+  FROM opportunities
+)
+SELECT
+  lb.month,
+  COUNT(DISTINCT lb.lead_id) AS leads,
+  COUNT(DISTINCT ob.opportunity_id) AS opportunities,
+  COUNT(DISTINCT CASE WHEN ob.stage = 'won' THEN ob.opportunity_id END) AS won_opps,
+  ROUND(100 * COUNT(DISTINCT ob.opportunity_id) / NULLIF(COUNT(DISTINCT lb.lead_id),0), 2) AS lead_to_opp_pct,
+  ROUND(100 * COUNT(DISTINCT CASE WHEN ob.stage='won' THEN ob.opportunity_id END)
+          / NULLIF(COUNT(DISTINCT ob.opportunity_id),0), 2) AS opp_win_rate_pct,
+  ROUND(AVG(DATEDIFF(ob.close_date, ob.created_date)), 1) AS avg_cycle_days
+FROM lead_base lb
+LEFT JOIN opp_base ob ON ob.lead_id = lb.lead_id
+GROUP BY lb.month
+ORDER BY lb.month;
+
+-- Loss reasons (for won/lost hygiene and insights)
+SELECT 
+    loss_reason, COUNT(*) AS lost_opps
+FROM
+    opportunities
+WHERE
+    stage = 'lost'
+GROUP BY loss_reason
+ORDER BY lost_opps DESC;
+-- Dashboard-ready view (MySQL 9.3)
+
+CREATE OR REPLACE VIEW vw_daily_salesboard AS
+SELECT
+  b.booking_date,
+  b.state,
+  p.package_type,
+  sr.team AS sales_team,
+  sr.rep_name,
+  COUNT(*) AS bookings,
+  SUM(b.revenue) AS revenue,
+  SUM(b.revenue - b.cost) AS margin,
+  ROUND(100 * SUM(b.revenue - b.cost) / NULLIF(SUM(b.revenue),0), 2) AS margin_pct,
+  AVG(b.attendees) AS avg_attendees
+FROM bookings b
+LEFT JOIN packages p ON p.package_id = b.package_id
+LEFT JOIN opportunities o ON o.opportunity_id = b.opportunity_id
+LEFT JOIN sales_reps sr ON sr.sales_rep_id = o.sales_rep_id
+GROUP BY b.booking_date, b.state, p.package_type, sr.team, sr.rep_name;
+-- Christmas Spike
+SELECT DATE_FORMAT(event_date, '%Y-%m-01') AS month, COUNT(*) AS bookings, ROUND(SUM(revenue),2) AS revenue
+FROM bookings
+GROUP BY 1
+ORDER BY 1;
+-- Package mix & revenue
+SELECT p.package_type, COUNT(*) bookings, ROUND(SUM(b.revenue),2) revenue, ROUND(AVG(b.revenue),2) avg_value
+FROM bookings b JOIN packages p ON p.package_id=b.package_id
+GROUP BY 1
+ORDER BY revenue DESC;
+-- Top customers
+SELECT c.company_name, ROUND(SUM(b.revenue),2) lifetime_revenue, COUNT(*) bookings
+FROM bookings b JOIN customers c ON c.customer_id=b.customer_id
+GROUP BY 1
+ORDER BY lifetime_revenue DESC
+LIMIT 10;
+-- State Performance
+SELECT state, COUNT(*) bookings, ROUND(SUM(revenue),2) revenue, ROUND(AVG(revenue - cost),2) avg_margin
+FROM bookings
+GROUP BY state
+ORDER BY revenue DESC;
