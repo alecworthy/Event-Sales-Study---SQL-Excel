@@ -61,16 +61,13 @@ These checks help ensure that reported insights are trustworthy and business-rea
 
 ---
 
-## 📊 Key Insights (Example)
-
-> *(Replace percentages/values with your final numbers once screenshots are locked)*
+## 📊 Key Insights
 
 - Revenue and bookings peak sharply in **November–December**, driven by seasonal Christmas party packages.
-- **Seasonal and conference packages** generate the highest average booking value.
-- Approximately **X% of customers are repeat buyers**, contributing a disproportionately large share of total revenue.
-- The **lead-to-opportunity conversion rate** is approximately **X%**, with an overall **win rate of X%**.
-- The average **sales cycle length** is **~X days**, varying by package type and deal size.
-- NSW and VIC account for the majority of bookings, but some states show higher average margins.
+- **Retreat and Launch** generate the highest average booking value.
+- The biggest percentage growth was **135%** that happending from November to December.  
+- The top customers have an average of **9** repeat bookings. 
+- SA and VIC account for the majority of bookings, but some states show higher average margins.
 
 ---
 
@@ -82,26 +79,31 @@ SQL queries generate:
 - Funnel conversion and sales cycle metrics
 - A **dashboard-ready view** (`vw_daily_salesboard`) suitable for BI tools
 
-Query outputs are exported to Excel for clean, stakeholder-friendly visualisations, which are included in the `/images` folder.
+Query outputs are exported to Excel for clean, stakeholder-friendly visualisations.
 
 ---
 
 ## 📊 Screen Shots & Visualisations
 
 
-Monthly Sale KPIs:
+Monthly Sale KPIs: Pulled from Excel showing the comparison between Revenue, Costs and Margin over 2 years. 
+
 <img width="737" height="352" alt="image" src="https://github.com/user-attachments/assets/56dabdd9-4caa-4209-adcf-640f137aaf1e" />
 
-Percentage Revenue Growth:
+Percentage Revenue Growth: Pulled from Excel showing the percentage reveue increase and decrease across the 2 years. 
+
 <img width="746" height="400" alt="image" src="https://github.com/user-attachments/assets/76bf07fd-bcbc-41c9-acec-c7e02164badf" />
 
-Christmas Spike:
+Christmas Spike: Pulled from Excel showing the increase of sales over the Christmas period and leading into the New Year. 
+
 <img width="541" height="322" alt="image" src="https://github.com/user-attachments/assets/5e990dd3-9f87-434f-95a4-093ea7208406" />
 
-State Performance
+State Performance: Pulled from MySQL showing the State Performance sales.
+
 <img width="1322" height="577" alt="image" src="https://github.com/user-attachments/assets/f2010d95-6920-4674-b6f3-47b91fa0ef0f" />
 
-Top Customers:
+Top Customers: Pulled from Excel showing the top 10 Customers with the highest Sales. 
+
 <img width="403" height="266" alt="image" src="https://github.com/user-attachments/assets/5409d1c9-818d-4510-9205-0b9ae9d74963" />
 
 ---
