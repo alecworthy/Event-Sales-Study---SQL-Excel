@@ -86,17 +86,14 @@ Query outputs are exported to Excel for clean, stakeholder-friendly visualisatio
 
 ---
 
+## 📊 Screen Shots & Visualisations
+
+
+
 ## ▶️ How to Run the Project
 
 1. Create a MySQL database (v9.3+)
-2. Run scripts in order:
-   - `sql/01_schema_mysql.sql`
-   - `sql/02_seed_data_mysql.sql`
-   - `sql/03_data_quality.sql`
-   - `sql/04_kpis.sql`
-   - `sql/05_customer_insights.sql`
-   - `sql/06_funnel.sql`
-   - `sql/07_views.sql`
+2. Run scripts in order: [See code here](https://github.com/alecworthy/Event-Sales-Study---SQL-Excel/blob/main/SQL%20Full%20code)
 3. Export result sets as CSV for visualisation in Excel
 
 ---
