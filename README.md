@@ -89,6 +89,22 @@ Query outputs are exported to Excel for clean, stakeholder-friendly visualisatio
 ## 📊 Screen Shots & Visualisations
 
 
+Monthly Sale KPIs:
+<img width="737" height="352" alt="image" src="https://github.com/user-attachments/assets/56dabdd9-4caa-4209-adcf-640f137aaf1e" />
+
+Percentage Revenue Growth:
+<img width="746" height="400" alt="image" src="https://github.com/user-attachments/assets/76bf07fd-bcbc-41c9-acec-c7e02164badf" />
+
+Christmas Spike:
+<img width="541" height="322" alt="image" src="https://github.com/user-attachments/assets/5e990dd3-9f87-434f-95a4-093ea7208406" />
+
+State Performance
+<img width="1322" height="577" alt="image" src="https://github.com/user-attachments/assets/f2010d95-6920-4674-b6f3-47b91fa0ef0f" />
+
+Top Customers:
+<img width="403" height="266" alt="image" src="https://github.com/user-attachments/assets/5409d1c9-818d-4510-9205-0b9ae9d74963" />
+
+---
 
 ## ▶️ How to Run the Project
 
